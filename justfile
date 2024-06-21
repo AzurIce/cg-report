@@ -1,3 +1,6 @@
+render target:
+    manim render main.py -ql {{target}}
+
 preview target:
     @echo 'previewing {{target}}...'
     manim render main.py -ql --renderer opengl --write_to_movie {{target}}
@@ -7,8 +10,6 @@ build target:
     manim render main.py -qk {{target}} --disable_caching
 
 noise:
-    manim render main.py CreateCircle
-perlin:
-    manim render main.py -ql --renderer opengl --write_to_movie Perlin
-fractalperlin:
-    manim render main.py -ql --renderer opengl --write_to_movie FractalPerlin
+    manim render main.py -qk PerlinNoise FractalPerlinNoise FractalWithDerivativePerlinNoise
+terrain:
+    manim render main.py -qk Perlin FractalPerlin FractalWithDerivativePerlin
