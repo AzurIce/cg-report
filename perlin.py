@@ -1,3 +1,4 @@
+from typing import Tuple
 import numpy as np
 
 P = [
@@ -20,8 +21,33 @@ P = [
 ]
 
 
+def lerp(t, a, b):
+    return a + t * (b - a)
+
 class ImprovedNoise:
     p = P + P
+
+    @staticmethod
+    def fractal_with_derivative_noise(x, y, octaves=4, persistence=0.5):
+        total = 0.0
+        frequency = 1.0
+        amplitude = 1.0
+        max_value = 0.0
+
+        d = np.zeros(2) # derivatives
+        for _ in range(octaves):
+            n, dndx, dndy = ImprovedNoise.noise_with_derivative(x * frequency, y * frequency)
+            d += (dndx * amplitude, dndy * amplitude)
+            total += amplitude * n / (1.0 + np.dot(d, d))
+
+            amplitude *= persistence
+            max_value += amplitude
+            frequency *= 2
+
+        # Normalize to range [-1, 1]
+        total /= max_value
+        return total
+        
 
     @staticmethod
     def fractal_noise(x, y, octaves=4, persistence=0.5):
@@ -39,6 +65,60 @@ class ImprovedNoise:
         # Normalize to range [-1, 1]
         total /= max_value
         return total
+
+    
+    @staticmethod
+    def noise_with_derivative(x, y) -> Tuple[float, float, float]:
+        # decimal part
+        X = int(np.floor(x)) & 255
+        Y = int(np.floor(y)) & 255
+
+        # fractional part
+        x -= np.floor(x)
+        y -= np.floor(y)
+
+        """
+        fade(x) = 6x^5 - 15x^4 + 10x^3
+        fade'(x) = 30x^4 - 60x^3 + 30x^2
+        lerp(t, a, b) = a + t(b - a)
+
+        u = fade(x)
+        v = fade(y)
+
+        so, we have:
+        n = lerp(v, lerp(u, p0, p1), lerp(u, p2, p3))
+          = lerp(u, p0, p1) + v(lerp(u, p2, p3) - lerp(u, p0, p1))
+          = p0 + u(p1 - p0) + v(p2 + u(p3 - p2) - p0 - u(p1 - p0))
+          = p0 + (p1 - p0)u + (p2 - p0)v + (p3 - p2 - p1 + p0)uv
+        
+        so, we have:
+        dn/dx = ((p1 - p0) + (p3 - p2 - p1 + p0)v) * u'(x)
+        dn/dy = ((p2 - p0) + (p3 - p2 - p1 + p0)u) * v'(y)
+        """
+        u = ImprovedNoise.fade(x)
+        v = ImprovedNoise.fade(y)
+
+        """
+            0---01-----1
+            |   |      |
+            |   p      |
+            |   |      |
+            2---23-----3
+        """
+        A = ImprovedNoise.p[X] + Y
+        B = ImprovedNoise.p[X + 1] + Y
+        p0 = ImprovedNoise.grad(ImprovedNoise.p[A], x, y)
+        p1 = ImprovedNoise.grad(ImprovedNoise.p[B], x - 1, y)
+        p2 = ImprovedNoise.grad(ImprovedNoise.p[A + 1], x, y - 1)
+        p3 = ImprovedNoise.grad(ImprovedNoise.p[B + 1], x - 1, y - 1)
+
+        n = lerp(v, lerp(u, p0, p1), lerp(u, p2, p3))
+        dndx = ((p1 - p0) + (p3 - p2 - p1 + p0) * v) * ImprovedNoise.fade_d(x)
+        dndy = ((p2 - p0) + (p3 - p2 - p1 + p0) * u) * ImprovedNoise.fade_d(y)
+
+        return (n, dndx, dndy)
+        
+    
 
     @staticmethod
     def noise(x, y):
@@ -62,28 +142,22 @@ class ImprovedNoise:
         """
         A = ImprovedNoise.p[X] + Y
         B = ImprovedNoise.p[X + 1] + Y
+        p0 = ImprovedNoise.grad(ImprovedNoise.p[A], x, y)
+        p1 = ImprovedNoise.grad(ImprovedNoise.p[B], x - 1, y)
+        p2 = ImprovedNoise.grad(ImprovedNoise.p[A + 1], x, y - 1)
+        p3 = ImprovedNoise.grad(ImprovedNoise.p[B + 1], x - 1, y - 1)
 
-        return ImprovedNoise.lerp(
-            v,
-            ImprovedNoise.lerp(
-                u,
-                ImprovedNoise.grad(ImprovedNoise.p[A], x, y),
-                ImprovedNoise.grad(ImprovedNoise.p[B], x - 1, y),
-            ),
-            ImprovedNoise.lerp(
-                u,
-                ImprovedNoise.grad(ImprovedNoise.p[A + 1], x, y - 1),
-                ImprovedNoise.grad(ImprovedNoise.p[B + 1], x - 1, y - 1),
-            ),
-        )
+        
+        return lerp(v, lerp(u, p0, p1), lerp(u, p2, p3))
+
 
     @staticmethod
     def fade(t):
         return t * t * t * (t * (t * 6 - 15) + 10)
-
+    
     @staticmethod
-    def lerp(t, a, b):
-        return a + t * (b - a)
+    def fade_d(t):
+        return 30 * t * t * (t * (t - 2) + 1)
 
     @staticmethod
     def grad(hash, x, y):
@@ -105,6 +179,9 @@ def get_noise(x, y, size):
 def get_fractal_noise(x, y, size):
     return ImprovedNoise.fractal_noise(map_value(x, size, LATTICE_CNT), map_value(y, size, LATTICE_CNT))
 
+def get_fractal_with_derivative_noise(x, y, size):
+    return ImprovedNoise.fractal_with_derivative_noise(map_value(x, size, LATTICE_CNT), map_value(y, size, LATTICE_CNT))
+
 def generate_perlin_noise(width, height):
     noise = np.zeros((height, width))
     for y in range(height):
@@ -124,5 +201,15 @@ def generate_fractal_perlin_noise(width, height, octaves=4, persistence=0.5):
             mapped_x = map_value(x, width, LATTICE_CNT)
             mapped_y = map_value(y, height, LATTICE_CNT)
             noise[y][x] = ImprovedNoise.fractal_noise(mapped_x, mapped_y, octaves, persistence)
+    noise = (noise - np.min(noise)) / (np.max(noise) - np.min(noise))
+    return noise
+
+def generate_fractal_with_derivative_perlin_noise(width, height, octaves=4, persistence=0.5):
+    noise = np.zeros((height, width))
+    for y in range(height):
+        for x in range(width):
+            mapped_x = map_value(x, width, LATTICE_CNT)
+            mapped_y = map_value(y, height, LATTICE_CNT)
+            noise[y][x] = ImprovedNoise.fractal_with_derivative_noise(mapped_x, mapped_y, octaves, persistence)
     noise = (noise - np.min(noise)) / (np.max(noise) - np.min(noise))
     return noise
