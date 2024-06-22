@@ -28,7 +28,7 @@ class ImprovedNoise:
     p = P + P
 
     @staticmethod
-    def fractal_with_derivative_noise(x, y, octaves=4, persistence=0.5):
+    def fractal_with_derivative_noise(x, y, octaves=8, persistence=0.5):
         total = 0.0
         frequency = 1.0
         amplitude = 1.0
