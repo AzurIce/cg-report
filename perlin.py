@@ -38,19 +38,22 @@ class ImprovedNoise:
         for _ in range(octaves):
             n, dndx, dndy = ImprovedNoise.noise_with_derivative(x * frequency, y * frequency)
             d += (dndx * amplitude, dndy * amplitude)
-            total += amplitude * n / (1.0 + np.dot(d, d))
+            factor = n / (1.0 + np.dot(d, d))
+            total += amplitude * factor
 
-            amplitude *= persistence
             max_value += amplitude
+            amplitude *= persistence
             frequency *= 2
+        # if total > 1:
+        #     print(f'-------- {total}, {max_value} --------')
 
         # Normalize to range [-1, 1]
         total /= max_value
         return total
-        
+
 
     @staticmethod
-    def fractal_noise(x, y, octaves=4, persistence=0.5):
+    def fractal_noise(x, y, octaves=8, persistence=0.5):
         total = 0.0
         frequency = 1.0
         amplitude = 1.0
@@ -66,7 +69,7 @@ class ImprovedNoise:
         total /= max_value
         return total
 
-    
+
     @staticmethod
     def noise_with_derivative(x, y) -> Tuple[float, float, float]:
         # decimal part
@@ -164,8 +167,8 @@ class ImprovedNoise:
         arr = [(1, 2), (1, -2), (-1, 2), (-1, -2), (2, 1), (2, -1), (-2, 1), (-2, -1)]
         h = hash & 0b111
         return (x * arr[h][0] + y * arr[h][1]) / np.sqrt(5)
-        
-        
+
+
 def map_value(x, original_bound, target_bound):
     return x / original_bound * target_bound
 
@@ -174,7 +177,6 @@ LATTICE_CNT = 8
 
 def get_noise(x, y, size):
     return ImprovedNoise.noise(map_value(x, size, LATTICE_CNT), map_value(y, size, LATTICE_CNT))
-
 
 def get_fractal_noise(x, y, size):
     return ImprovedNoise.fractal_noise(map_value(x, size, LATTICE_CNT), map_value(y, size, LATTICE_CNT))

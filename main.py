@@ -4,7 +4,22 @@ from perlin import *
 
 size = 32
 width, height = size, size
-depth = 5
+depth = 3
+
+
+def color_func(u, v, get_noise_func):
+    z = get_noise_func(v, u)
+
+    if z < -0.5:
+        return BLUE
+    elif z < 0:
+        return interpolate_color(GREEN, YELLOW, np.interp(z, [-0.5, 0], [0, 1]))
+    elif z < 0.5:
+        return interpolate_color(YELLOW, BROWN, np.interp(z, [0, 0.5], [0, 1]))
+    elif z < 0.7:
+        return interpolate_color(BROWN, GRAY, np.interp(z, [0.5, 1], [0, 1]))
+    else:
+        return WHITE
 
 
 class PerlinNoise(Scene):
@@ -55,7 +70,13 @@ class FractalWithDerivativePerlinNoise(Scene):
         return Image.fromarray(noise)
 
 
-class FractalWithDerivativePerlin(ThreeDScene):
+from abc import ABC, abstractmethod
+
+class Terrain(ThreeDScene):
+    @abstractmethod
+    def noise_func(self, x, y, size):
+        pass
+
     def construct(self):
         axes = ThreeDAxes()
         self.add(axes)
@@ -67,84 +88,40 @@ class FractalWithDerivativePerlin(ThreeDScene):
         r = mid + cut_radius - 1
         range = (l, r)
         surface = Surface(
-            lambda u, v: [
+            lambda u, v: axes.c2p(
                 u,
                 v,
-                get_fractal_with_derivative_noise(v, u, size) * depth
-            ],
-            resolution=cut_radius * 2 * 4,
+                self.noise_func(v, u, size) * depth
+            ),
+            resolution=cut_radius * 2 * 16,
             u_range=range,
             v_range=range,
+            checkerboard_colors=False,
         )
 
         surface.shift(size / 2 * (DOWN + LEFT))
+        surface.set_style(fill_opacity=1)
+        surface.set_fill_by_value(axes=axes, colorscale=[(c, x * depth) for c, x in [(BLUE_E, -1.0), (BLUE_E, -0.9), (BLUE_C, -0.8), (GOLD_E, -0.7), (GRAY_BROWN, -0.1), (GRAY_BROWN, 0.1), (DARK_GRAY, 0.25), (GRAY, 0.6), (WHITE, 0.7), (WHITE, 1.0)]])
         self.add(surface)
 
-        self.set_camera_orientation(phi=70 * DEGREES, theta=30 * DEGREES)
+        self.set_camera_orientation(phi=70 * DEGREES, theta=30 * DEGREES, zoom=0.5)
 
         T = 5
-        self.begin_ambient_camera_rotation(rate=1 / T)
-        self.wait(T)
-
-class Perlin(ThreeDScene):
-    def construct(self):
-        axes = ThreeDAxes()
-        self.add(axes)
-
-        cut_radius = 16
-
-        mid = (size - 1) // 2
-        l = mid - cut_radius + 1
-        r = mid + cut_radius - 1
-        range = (l, r)
-        surface = Surface(
-            lambda u, v: [
-                u,
-                v,
-                get_noise(v, u, size) * depth
-            ],
-            resolution=cut_radius * 2 * 4,
-            u_range=range,
-            v_range=range,
-        )
-
-        surface.shift(size / 2 * (DOWN + LEFT))
-        self.add(surface)
-
-        self.set_camera_orientation(phi=70 * DEGREES, theta=30 * DEGREES)
-
-        T = 5
-        self.begin_ambient_camera_rotation(rate=1 / T)
+        self.begin_ambient_camera_rotation(rate=1 / T * 2)
         self.wait(T)
 
 
-class FractalPerlin(ThreeDScene):
-    def construct(self):
-        axes = ThreeDAxes()
-        self.add(axes)
+class Perlin(Terrain):
+    def noise_func(self, x, y, size):
+        return get_noise(x, y, size)
 
-        cut_radius = 16
 
-        mid = (size - 1) // 2
-        l = mid - cut_radius + 1
-        r = mid + cut_radius - 1
-        range = (l, r)
-        surface = Surface(
-            lambda u, v: [
-                u,
-                v,
-                get_fractal_noise(v, u, size) * depth
-            ],
-            resolution=cut_radius * 2 * 8,
-            u_range=range,
-            v_range=range,
-        )
+class FractalPerlin(Terrain):
+    def noise_func(self, x, y, size):
+        return get_fractal_noise(x, y, size) * depth
 
-        surface.shift(size / 2 * (DOWN + LEFT))
-        self.add(surface)
 
-        self.set_camera_orientation(phi=70 * DEGREES, theta=30 * DEGREES)
+class FractalWithDerivativePerlin(Terrain):
+    def noise_func(self, x, y, size):
+        return get_fractal_with_derivative_noise(x, y, size) * depth
 
-        T = 5
-        self.begin_ambient_camera_rotation(rate=1 / T)
-        self.wait(T)
