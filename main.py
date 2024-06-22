@@ -7,21 +7,6 @@ width, height = size, size
 depth = 3
 
 
-def color_func(u, v, get_noise_func):
-    z = get_noise_func(v, u)
-
-    if z < -0.5:
-        return BLUE
-    elif z < 0:
-        return interpolate_color(GREEN, YELLOW, np.interp(z, [-0.5, 0], [0, 1]))
-    elif z < 0.5:
-        return interpolate_color(YELLOW, BROWN, np.interp(z, [0, 0.5], [0, 1]))
-    elif z < 0.7:
-        return interpolate_color(BROWN, GRAY, np.interp(z, [0.5, 1], [0, 1]))
-    else:
-        return WHITE
-
-
 class PerlinNoise(Scene):
     def construct(self):
         noise = generate_perlin_noise(width, height)
