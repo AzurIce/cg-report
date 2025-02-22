@@ -70,14 +70,15 @@ class Terrain(ThreeDScene):
             (GREY_D, 0.25), (GREY, 0.6), (WHITE, 0.7), (WHITE, 1.0)
         ]
 
-        def color_func(u, v):
-            z = self.noise_func(v, u, size) * depth
+        def color_func(z):
+            t = z / depth
+            t = min(max(t, -1.0), 1.0)
             for i in range(len(colorscale)-1):
                 c1, x1 = colorscale[i]
                 c2, x2 = colorscale[i+1]
-                if x1 <= z <= x2:
-                    t = (z - x1)/(x2 - x1)
-                    return color_to_rgb(interpolate_color(c1, c2, t))
+                if x1 <= t <= x2:
+                    a = (t - x1)/(x2 - x1)
+                    return color_to_rgb(interpolate_color(c1, c2, a))
             return color_to_rgb(colorscale[-1][0])
 
         resolution = cut_radius * 2 * 16
@@ -95,7 +96,7 @@ class Terrain(ThreeDScene):
         # 手动设置面颜色
         points = surface.get_points()
         z_values = points[:, 2]
-        surface.set_color_by_rgb_func(lambda p: color_func(p[0], p[1]))
+        surface.set_color_by_rgb_func(lambda p: color_func(p[2]))
         surface.shift(size/2 * (DOWN + LEFT))
         self.add(surface)
 
