@@ -1,3 +1,11 @@
-[tool.pyright]
-venvPath = "."
-venv = ".venv"
+[project]
+name = "cg-report"
+version = "0.1.0"
+description = "Terrain Generating Algorithm based on Fractal Perlin Noise"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "manim>=0.18.0,<0.19",
+    "manimgl>=1.7.2",
+    "setuptools>=75.8.0",
+]
